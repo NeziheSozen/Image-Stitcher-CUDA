@@ -2,10 +2,22 @@
 #include<stdio.h>
 
 #include<opencv2/opencv.hpp>
+#include<cublas_v2.h>
+//Macro for checking cuda errors following a cuda launch or api call
+void cudaCheckError()
+{
+	cudaError_t e=cudaGetLastError();
+	if(e!=cudaSuccess)
+	{
+		printf("Cuda failure %s:%d: '%s'\n",__FILE__,__LINE__,cudaGetErrorString(e));
+	}
+}
 
 //protoypes
 void Low_Pass_Filter(float* input, float* output, int w, int h);
-__global__ void print(float *input, float* output, int w, int h);
+void GaussianBlur(float** input, float** output, int w, int h);
+__global__ void Convolution(float*  input, float* output, float kernel[5], int w, int h);
+__global__ void transpose_copy(float *odata, float* idata, int w, int h);
 
 int main(void)
 {
@@ -19,6 +31,10 @@ int main(void)
 	//store original images in greyscale
 	right_image = cv::imread("test.jpg", 0);
 	left_image = cv::imread("test.jpg", 0);
+
+	//add padding for other operations
+	cv::copyMakeBorder(right_image, right_image, 2, 2, 2, 2, cv::BORDER_CONSTANT, 0 );
+	cv::copyMakeBorder(left_image, left_image, 2, 2, 2, 2, cv::BORDER_CONSTANT, 0 );
 
 	//pass width and height parameters and initialize array
 	w = right_image.cols;
@@ -47,12 +63,16 @@ int main(void)
 	cudaMalloc((void**)&left_image_data_gpu, sizeof(float)*h*w);
 	cudaMemcpy(left_image_data_gpu, left_image_data, sizeof(float)*h*w, cudaMemcpyHostToDevice);
 
-	//low pass filter
-
-	
 	//tests
 	float* test = new float[w*h];
-	cudaMemcpy(test, right_image_data_gpu, sizeof(float)*w*h, cudaMemcpyDeviceToHost);
+	float* test_gpu;
+	cudaMalloc((void**) &test_gpu, sizeof(float)*w*h);
+	//low pass filter
+	std::cout << &right_image_data_gpu << std::endl;
+	std::cout << &test_gpu << std::endl;
+        GaussianBlur(&right_image_data_gpu, &test_gpu, w, h); 
+
+	cudaMemcpy(test, test_gpu, sizeof(float)*w*h, cudaMemcpyDeviceToHost);
 	//print<<<1,1>>>(right_image_data_gpu, test,  w, h);
 	//cudaDeviceSynchronize();
 	cv::Mat A(h, w, CV_32FC1, test);
@@ -61,42 +81,66 @@ int main(void)
 	return 0;
 }
 
-
-__global__ void print(float *input, float* output, int w, int h)
+void GaussianBlur(float** input, float** output, int w, int h)
 {
-	for(int i = 0; i<w*h; i++)
-	{
-		output[i] = input[i];
-	}
+	float* kernel;
+        float* stage1;
+        cudaMallocManaged(&kernel, sizeof(float) * 5);
+        cudaMallocManaged(&stage1, sizeof(float) * w * h);
+	kernel[0] = 0.06136;
+        kernel[1] = 0.24477;
+	kernel[2] = 0.38774;
+	kernel[3] = 0.24477;
+	kernel[4] = 0.06136;
+	Convolution<<<h, w>>>((*input), stage1, kernel, w, h);
+	cudaCheckError();
+	cudaDeviceSynchronize();
+ 	const float alf = 1;
+	const float bet = 0;
+ 	const float *alpha = &alf;
+	const float *beta = &bet;
+        
+
+	cublasHandle_t handle;
+	cublasCreate(&handle);
+	cublasSgeam(handle, CUBLAS_OP_T, CUBLAS_OP_T, h, w, alpha, stage1, w, beta, (*input), w, (*output), h); 
+        //transpose_copy<<<dim3(w/32, h/32) , dim3(32, 8)>>>((*output), (*input), w , h);
+	cudaCheckError();
+        cudaDeviceSynchronize();
+        Convolution<<<w, h>>>((*output), stage1, kernel, w, h);
+        cublasSgeam(handle, CUBLAS_OP_T, CUBLAS_OP_T, w, h, alpha, stage1, h, beta, (*input), h, (*output), w);
 }
 
-
-
-/*
-__global__ Convolution(float* input, float* output, float* kernel, int pitch, int w, int h)
+__global__ void Convolution(float*  input, float* output, float kernel[5], int w, int h)
 {
 	//shared memory for faster accesses
 	//__shared__ float buffer[pitch] = blockIdx.x
-
-	for(int i = blockIdx.x * blockDim.x + threadIdx.x; i < w*h; i += blockDim.x*gridDim.x)
+	//horizontal pass ... transpose and send thru again then transpose again
+	for(int i = blockIdx.x * blockDim.x + threadIdx.x; i < (w)*(h); i += blockDim.x*gridDim.x)
 	{
-		//possible divergence
-		int arrayVal_back = i>=0 ? input[i] : 0;
-		int arrayVal_back = i<(h*w) ? input[i] : 0;
-		int arrayVal = i>=0 ? input[i] : 0;
-		int arrayVal = i>=0 ? input[i] : 0;
-		int arrayVal = i<(h*w) ? input[i] : 0;
-		int arrayVal = i<(h*w) ? input[i] : 0;
-		if ((i>=0) || (i<(h*w)))
+		output[i] = 0;
+		if((threadIdx.x>=2)&&(threadIdx.x < 1002))
 		{
-			output[i] = arrayVal*kernel[0] + arrayVal
+			output[i] = input[i-2]*kernel[0] + input[i-1]*kernel[1] + input[i]*kernel[2] + input[i+1]*kernel[3] + input[i+2]*kernel[4];
+			//printf("%f ", input[i]);
 		}
 	}
 }
 
-// low pass filter implementation
-void Low_Pass_Filter(float* input, float* output, int w, int h)
+
+__global__ void transpose_copy(float *odata, float * idata, int w, int h)
 {
-	
+  int TILE_DIM=32;
+  int BLOCK_ROWS=8;
+  int x = blockIdx.x * TILE_DIM + threadIdx.x;
+  int y = blockIdx.y * TILE_DIM + threadIdx.y;
+  int width = gridDim.x * TILE_DIM;
+
+  for (int j = 0; j < TILE_DIM; j+= BLOCK_ROWS){
+    if (x*width + (y + j) < w*h)   
+    odata[x*width + (y+j)] = idata[(y+j)*width + x];
+
+
+
+  }
 }
-*/
