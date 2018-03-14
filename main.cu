@@ -254,9 +254,34 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 			//subpixel value not calculated so may not be robust and give excat....
 			
 			//intensity threshold
-			if (((difference1[y][x] > THRESHOLD) && (difference1[y][x] < THRESHOLD)) || ((difference2[y][x] > THRESHOLD) && (difference2[y][x] < THRESHOLD)))
+			if (((difference1[y][x] > INTENSITY_THRESHOLD) && (difference1[y][x] < INTENSITY_THRESHOLD)) || ((difference2[y][x] > INTENSITY_THRESHOLD) && (difference2[y][x] < INTENSITY_THRESHOLD)))
 			{
-				
+				//compute hessian matrix
+				//assume h^2 = k^2 = 1024
+				float difference1xx = (1.0/1024)*(difference1[y][x+1]-(2*difference1[y][x])-difference1[y][x-1]);
+				float difference1yy = (1.0/1024)*(difference1[y+1][x]-(2*difference1[y][x])-difference1[y-1][x]);
+				float difference1xy = (1.0/(4*1024))*(difference1[y+1][x+1]-difference1[y-1][x+1]-difference1[y+1][x-1] + difference1[y-1][x-1]);
+
+				float difference2xx = (1.0/1024)*(difference2[y][x+1]-(2*difference2[y][x])-difference2[y][x-1]);
+				float difference2yy = (1.0/1024)*(difference2[y+1][x]-(2*difference2[y][x])-difference2[y-1][x]);
+				float difference2xy = (1.0/(4*1024))*(difference2[y+1][x+1]-difference2[y-1][x+1]-difference2[y+1][x-1] + difference2[y-1][x-1]);
+
+				//find ratio of eigenvalues
+				float eigen1_positive = (1.0/2.0)*(difference1xx + difference1yy + sqrtf(((difference1xx-difference1yy)*(difference1xx-difference1yy))+(4.0*difference1xy*difference1xy)));
+				float eigen1_negative = (1.0/2.0)*(difference1xx + difference1yy - sqrtf(((difference1xx-difference1yy)*(difference1xx-difference1yy))+(4.0*difference1xy*difference1xy)));
+		
+				float eigen2_positive = (1.0/2.0)*(difference2xx + difference2yy + sqrtf(((difference2xx-difference2yy)*(difference2xx-difference2yy))+(4.0*difference2xy*difference2xy)));
+				float eigen2_negative = (1.0/2.0)*(difference2xx + difference2yy - sqrtf(((difference2xx-difference2yy)*(difference2xx-difference2yy))+(4.0*difference2xy*difference2xy)));
+
+				//shi-tomasi ?? score
+				float score1 = fminf(eigen1_negative, eigen1_positive);
+				float score2 = fminf(eigen2_negative, eigen2_positive);
+
+				//acceptable corners
+				if ((score1 > CORNER_THRESHOLD) || (score2 > CORNER_THRESHOLD))
+				{
+					//
+				}
 			}
 		}
 		
