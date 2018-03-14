@@ -110,34 +110,46 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 	__shared__ float sigma3[3][3] = {{0.108808, 0.112244, 0.108808}, {0.112244, 0.115788, 0.112244}, {0.108808, 0.112244, 0.108808}};
 	__shared__ float sigma4[3][3] = {{0.109634, 0.111842, 0.109634}, {0.111842, 0.114094, 0.111842}, {0.109634, 0.111842, 0.109634}}; 
 	
-	//pixel
-	//int pixel = threadIdx.x;
-	
-	//copy into shared memory
-	shared_input[pixel] = input[pixel];
-
-	//blur
-	int sum0 = 0;
-	int sum1 = 0; 
-	int sum2 = 0; 
-	int sum3 = 0; 
-	int sum4 = 0; 
-	for (int times = 0; times < 25; times++)
-	{
-		if ((pixel>=12)&&(pixel<(w-12)))
-		{
-			sum0 += sigma[times]*shared_input[times-pixel]
-		}
-	}
-	blur1[pixel] = sigma0[0]*shared_input[pixel-12]
-
-
 	//output differences
-	__shared__ float difference0[];
-	__shared__ float difference1[];
-	__shared__ float difference2[];
-	__shared__ float difference3[];
-	*/
+	__shared__ float difference0[32][32];
+	__shared__ float difference1[32][32];
+	__shared__ float difference2[32][32];
+	__shared__ float difference3[32][32];
+
+	//pixel
+	int x = threadIdx.x;
+	int y = threadIdx.y;
+
+	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
+	{
+		blur0[y][x]
+		= (sigma0[0][0]*shared_input[y-1][x-1]) + (sigma0[0][1]*shared_input[y-1][x]) + (sigma0[0][2]*shared_input[y-1][x+1])
+		+ (sigma0[1][0]*shared_input[y][x-1]) + (sigma0[1][1]*shared_input[y][x]) + (sigma0[1][2]*shared_input[y][x+1])
+		+ (sigma0[2][0]*shared_input[y+1][x-1]) + (sigma0[2][1]*shared_input[y+1][x]) + (sigma0[2][2]*shared_input[y+1][x+1]);
+
+
+		blur1[y][x]
+		= (sigma1[0][0]*shared_input[y-1][x-1]) + (sigma1[0][1]*shared_input[y-1][x]) + (sigma1[0][2]*shared_input[y-1][x+1])
+		+ (sigma1[1][0]*shared_input[y][x-1]) + (sigma1[1][1]*shared_input[y][x]) + (sigma1[1][2]*shared_input[y][x+1])
+		+ (sigma1[2][0]*shared_input[y+1][x-1]) + (sigma1[2][1]*shared_input[y+1][x]) + (sigma1[2][2]*shared_input[y+1][x+1]);
+
+
+		blur2[y][x]
+		= (sigma2[0][0]*shared_input[y-1][x-1]) + (sigma2[0][1]*shared_input[y-1][x]) + (sigma2[0][2]*shared_input[y-1][x+1])
+		+ (sigma2[1][0]*shared_input[y][x-1]) + (sigma2[1][1]*shared_input[y][x]) + (sigma2[1][2]*shared_input[y][x+1])
+		+ (sigma2[2][0]*shared_input[y+1][x-1]) + (sigma2[2][1]*shared_input[y+1][x]) + (sigma2[2][2]*shared_input[y+1][x+1]);
+
+		blur3[y][x]
+		= (sigma3[0][0]*shared_input[y-1][x-1]) + (sigma3[0][1]*shared_input[y-1][x]) + (sigma3[0][2]*shared_input[y-1][x+1])
+		+ (sigma3[1][0]*shared_input[y][x-1]) + (sigma3[1][1]*shared_input[y][x]) + (sigma3[1][2]*shared_input[y][x+1])
+		+ (sigma3[2][0]*shared_input[y+1][x-1]) + (sigma3[2][1]*shared_input[y+1][x]) + (sigma3[2][2]*shared_input[y+1][x+1]);
+
+		blur4[y][x]
+		= (sigma4[0][0]*shared_input[y-1][x-1]) + (sigma4[0][1]*shared_input[y-1][x]) + (sigma4[0][2]*shared_input[y-1][x+1])
+		+ (sigma4[1][0]*shared_input[y][x-1]) + (sigma4[1][1]*shared_input[y][x]) + (sigma4[1][2]*shared_input[y][x+1])
+		+ (sigma4[2][0]*shared_input[y+1][x-1]) + (sigma4[2][1]*shared_input[y+1][x]) + (sigma4[2][2]*shared_input[y+1][x+1]);
+
+	}
 
 }
 
