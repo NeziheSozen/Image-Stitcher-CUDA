@@ -18,6 +18,7 @@ void Low_Pass_Filter(float* input, float* output, int w, int h);
 void GaussianBlur(float** input, float** output, int w, int h);
 __global__ void Convolution(float*  input, float* output, float kernel[5], int w, int h);
 __global__ void transpose_copy(float *odata, float* idata, int w, int h);
+__global__ void PipelinedBlur(float* input, int w);
 
 int main(void)
 {
@@ -60,8 +61,8 @@ int main(void)
 	cudaMalloc((void**)&right_image_data_gpu, sizeof(float)*h*w);
 	cudaMemcpy(right_image_data_gpu, right_image_data, sizeof(float)*h*w, cudaMemcpyHostToDevice);
 
-	cudaMalloc((void**)&left_image_data_gpu, sizeof(float)*h*w);
-	cudaMemcpy(left_image_data_gpu, left_image_data, sizeof(float)*h*w, cudaMemcpyHostToDevice);
+	//cudaMalloc((void**)&left_image_data_gpu, sizeof(float)*h*w);
+	//cudaMemcpy(left_image_data_gpu, left_image_data, sizeof(float)*h*w, cudaMemcpyHostToDevice);
 
 	//tests
 	float* test = new float[w*h];
@@ -71,7 +72,9 @@ int main(void)
 	std::cout << &right_image_data_gpu << std::endl;
 	std::cout << &test_gpu << std::endl;
         GaussianBlur(&right_image_data_gpu, &test_gpu, w, h); 
-
+	
+	int blockSize = w/32;
+        PipelinedBlur<<< blockSize ,dim3(32,32) >>>(right_image_data, w);
 	cudaMemcpy(test, test_gpu, sizeof(float)*w*h, cudaMemcpyDeviceToHost);
 	//print<<<1,1>>>(right_image_data_gpu, test,  w, h);
 	//cudaDeviceSynchronize();
@@ -86,8 +89,11 @@ int main(void)
 Input: 32*32
 */
 
-__global__ void PipelinedBlur(float* input, int2* keypoints, int w)
+__global__ void PipelinedBlur(float* input, int w)
 {
+	float INTENSITY_THRESHOLD = 3.5f;
+	float CORNER_THRESHOLD = 0.0f;
+	
 	//assign shared memory to 32 by 32 with halo region
 	__shared__ float shared_input[32][32];
 
@@ -104,12 +110,11 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 	__shared__ float blur4[32][32];
 
 	//different convolution kernels with different sigmas
-	__shared__ float sigma0[3][3] = {{0.077847, 0.123317, 0.077847}, {0.123317, 0.195346, 0.123317}, {0.077847, 0.123317, 0.077847}}; 
-	__shared__ float sigma1[3][3] = {{0.102059, 0.115349, 0.102059}, {0.115349, 0.130371, 0.115349}, {0.102059, 0.115349, 0.102059}};
-	__shared__ float sigma2[3][3] = {{0.107035, 0.113092, 0.107035}, {0.113092, 0.119491, 0.113092}, {0.107035, 0.113092, 0.107035}};
-	__shared__ float sigma3[3][3] = {{0.108808, 0.112244, 0.108808}, {0.112244, 0.115788, 0.112244}, {0.108808, 0.112244, 0.108808}};
-	__shared__ float sigma4[3][3] = {{0.109634, 0.111842, 0.109634}, {0.111842, 0.114094, 0.111842}, {0.109634, 0.111842, 0.109634}}; 
-	
+	float sigma0[3][3] = {{0.077847, 0.123317, 0.077847}, {0.123317, 0.195346, 0.123317}, {0.077847, 0.123317, 0.077847}}; 
+	float sigma1[3][3] = {{0.102059, 0.115349, 0.102059}, {0.115349, 0.130371, 0.115349}, {0.102059, 0.115349, 0.102059}};
+	float sigma2[3][3] = {{0.107035, 0.113092, 0.107035}, {0.113092, 0.119491, 0.113092}, {0.107035, 0.113092, 0.107035}};
+	float sigma3[3][3] = {{0.108808, 0.112244, 0.108808}, {0.112244, 0.115788, 0.112244}, {0.108808, 0.112244, 0.108808}};
+	float sigma4[3][3] = {{0.109634, 0.111842, 0.109634}, {0.111842, 0.114094, 0.111842}, {0.109634, 0.111842, 0.109634}};
 	//output differences
 	__shared__ float difference0[32][32];
 	__shared__ float difference1[32][32];
@@ -118,9 +123,15 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 
 	//pixel
 	int x = threadIdx.x;
-	int y = threadIdx.y;
-
-
+	int y = threadIdx.y;/*
+	if (x == 0 && y == 0)
+          sigma0[0][0] = 0.077847;
+        else if (x == 0 && y == 1)
+          sigma0[0][1] = 0.123317;
+        else if (x == 0 && y == 2)
+          sigma[0][2] = 0.077847;
+	else if (x == 1 && y == 0)
+*/
 	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
 	{
 		//convolutions
@@ -219,11 +230,11 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 		float lower2_456 = fminf(fminf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
 		float lower2_789 = fminf(fminf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
 
-		float lower3 = fminf(fminf(upper3_123, upper3_456), upper3_789);
-		float lower1 = fminf(fminf(upper1_123, upper1_456), upper1_789);
-		float lower2 = fminf(fminf(upper2_123, upper2_456), upper2_789);
+		float lower3 = fminf(fminf(lower3_123, lower3_456), lower3_789);
+		float lower1 = fminf(fminf(lower1_123, lower1_456), lower1_789);
+		float lower2 = fminf(fminf(lower2_123, lower2_456), lower2_789);
 
-		float lower_final_min = fminf(fminf(upper3, upper1), upper2);
+		float lower_final_min = fminf(fminf(lower3, lower1), lower2);
 
 		//upper max calc
 		lower3_123 = fmaxf(fmaxf(difference3[y-1][x-1], difference3[y-1][x-1]), difference3[y-1][x+1]);
@@ -239,11 +250,11 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 		lower2_456 = fmaxf(fmaxf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
 		lower2_789 = fmaxf(fmaxf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
 
-		lower3 = fmaxf(fmaxf(upper3_123, upper3_456), upper3_789);
-		lower1 = fmaxf(fmaxf(upper1_123, upper1_456), upper1_789);
-		lower2 = fmaxf(fmaxf(upper2_123, upper2_456), upper2_789);
+		lower3 = fmaxf(fmaxf(lower3_123, lower3_456), lower3_789);
+		lower1 = fmaxf(fmaxf(lower1_123, lower1_456), lower1_789);
+		lower2 = fmaxf(fmaxf(lower2_123, lower2_456), lower2_789);
 
-		float lower_final_max = fmaxf(fmaxf(upper3, upper1), upper2);
+		float lower_final_max = fmaxf(fmaxf(lower3, lower1), lower2);
 		
 		//generate extrema images
 		//difference1 is upper
