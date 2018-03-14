@@ -52,7 +52,7 @@ int main(void)
 	left_image.convertTo(left_image, CV_32FC1);
 	right_image /= 255;
 	left_image /= 255;
-
+	
 	float* right_image_data = (float*)right_image.data;
 	float* left_image_data = (float*)left_image.data;
 
@@ -80,6 +80,76 @@ int main(void)
 	cv::waitKey(0);
 	return 0;
 }
+
+
+/*
+Input: 32*32
+*/
+
+__global__ void PipelinedBlur(float* input, float* output0, float* output1, float* output2, float* output3, int w)
+{
+	//assign shared memory to 32 by 32 with halo region
+	__shared__ float shared_input[32][32];
+
+	int data = 0;
+	//assigned input to two dimensional as input is global
+	//access 1D to 2D
+	
+	shared_input[threadIdx.x][threadIdx.y] = input[blockIdx.x*blockDim.x + ((threadIdx.x*w) + threadIdx.y)]; 
+
+
+	printf("X: %d, Y: %d, Data: %f", threadIdx.x, threadIdx.y, data);
+	/*
+	shared_input[threadIdx.x][threadIdx.y] = data;	
+	__syncthreads();
+
+	// shared memory for blurred inputs
+	__shared__ float blur0[];
+	__shared__ float blur1[];
+	__shared__ float blur2[];
+	__shared__ float blur3[];
+	__shared__ float blur4[];
+
+	//different convolution kernels with different sigmas
+	__shared__ float sigma0[9] = {};
+	__shared__ float sigma1[9] = {};
+	__shared__ float sigma2[9] = {};
+	__shared__ float sigma3[9] = {};
+	__shared__ float sigma4[9] = {};
+	
+	//pixel
+	//int pixel = threadIdx.x;
+	
+	//copy into shared memory
+	shared_input[pixel] = input[pixel];
+
+	//blur
+	int sum0 = 0;
+	int sum1 = 0; 
+	int sum2 = 0; 
+	int sum3 = 0; 
+	int sum4 = 0; 
+	for (int times = 0; times < 25; times++)
+	{
+		if ((pixel>=12)&&(pixel<(w-12)))
+		{
+			sum0 += sigma[times]*shared_input[times-pixel]
+		}
+	}
+	blur1[pixel] = sigma0[0]*shared_input[pixel-12]
+
+
+	//output differences
+	__shared__ float difference0[];
+	__shared__ float difference1[];
+	__shared__ float difference2[];
+	__shared__ float difference3[];
+	*/
+
+}
+
+
+
 
 void GaussianBlur(float** input, float** output, int w, int h)
 {

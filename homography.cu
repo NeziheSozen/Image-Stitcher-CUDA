@@ -37,9 +37,6 @@ int main(void)
         cv::waitKey(0);
 
 
-
-
-
 	cv::Ptr<cv::DescriptorExtractor> extractor = cv::ORB::create();
 	extractor->compute( right_image, keypoints_1, descriptors_1 );
 	extractor->compute( left_image, keypoints_2, descriptors_2 );
@@ -82,10 +79,33 @@ if ( descriptors_2.empty() )
 	cv::drawMatches( right_image, keypoints_1, left_image, keypoints_2, good_matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
 	//-- Show detected matches
 	cv::imshow( "Good Matches", img_matches );
+	std::vector<cv::Point2f> pts_src, pts_dst;
+
+
 	for( int i = 0; i < (int)good_matches.size(); i++ )
 	{
 		printf( "-- Good Match [%d] Keypoint 1: %d  -- Keypoint 2: %d  \n", i, good_matches[i].queryIdx, good_matches[i].trainIdx );
+		pts_src.push_back( keypoints_1[ good_matches[i].queryIdx ].pt );
+		pts_dst.push_back( keypoints_2[ good_matches[i].trainIdx ].pt );
 	}
+	cv::Mat H = cv::findHomography( pts_src, pts_dst, CV_RANSAC );
+	std::cout << H << std::endl;
+	//-- Get the corners from the image_1 ( the object to be "detected" )
+	std::vector<cv::Point2f> src_corners(4);
+	src_corners[0] = cvPoint(0,0); src_corners[1] = cvPoint( right_image.cols, 0 );
+	src_corners[2] = cvPoint( right_image.cols, right_image.rows ); src_corners[3] = cvPoint( 0, right_image.rows );
+	std::vector<cv::Point2f> scene_corners(4);
+	
+	cv::perspectiveTransform(src_corners, scene_corners, H);
+	cv::line( img_matches, scene_corners[0] + cv::Point2f( right_image.cols, 0), scene_corners[1] + cv::Point2f( right_image.cols, 0), cv::Scalar(0, 255, 0), 4 );
+	cv::line( img_matches, scene_corners[1] + cv::Point2f( right_image.cols, 0), scene_corners[2] + cv::Point2f( right_image.cols, 0), cv::Scalar( 0, 255, 0), 4 );
+	cv::line( img_matches, scene_corners[2] + cv::Point2f( right_image.cols, 0), scene_corners[3] + cv::Point2f( right_image.cols, 0), cv::Scalar( 0, 255, 0), 4 );
+	cv::line( img_matches, scene_corners[3] + cv::Point2f( right_image.cols, 0), scene_corners[0] + cv::Point2f( right_image.cols, 0), cv::Scalar( 0, 255, 0), 4 );
+
+
+
+
+	cv::imshow("test", img_matches);
 	cv::waitKey(0);
 	return 0;
 }
