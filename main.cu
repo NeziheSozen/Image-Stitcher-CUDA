@@ -280,7 +280,9 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 				//acceptable corners
 				if ((score1 > CORNER_THRESHOLD) || (score2 > CORNER_THRESHOLD))
 				{
-					//
+					//implement orientation if time permits
+					printf("X: %d, Y: %d, Data: %d", x, y, shared_input[y][x]);
+					//return the keypoints in __shared__ and plot them over the original photo
 				}
 			}
 		}
