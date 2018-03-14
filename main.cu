@@ -91,31 +91,24 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 	//assign shared memory to 32 by 32 with halo region
 	__shared__ float shared_input[32][32];
 
-	int data = 0;
 	//assigned input to two dimensional as input is global
 	//access 1D to 2D
 	
-	shared_input[threadIdx.x][threadIdx.y] = input[blockIdx.x*blockDim.x + ((threadIdx.x*w) + threadIdx.y)]; 
-
-
-	printf("X: %d, Y: %d, Data: %f", threadIdx.x, threadIdx.y, data);
-	/*
-	shared_input[threadIdx.x][threadIdx.y] = data;	
-	__syncthreads();
+	shared_input[threadIdx.y][threadIdx.x] = input[blockIdx.x*blockDim.x + ((threadIdx.y*w) + threadIdx.x)]; 
 
 	// shared memory for blurred inputs
-	__shared__ float blur0[];
-	__shared__ float blur1[];
-	__shared__ float blur2[];
-	__shared__ float blur3[];
-	__shared__ float blur4[];
+	__shared__ float blur0[32][32];
+	__shared__ float blur1[32][32];
+	__shared__ float blur2[32][32];
+	__shared__ float blur3[32][32];
+	__shared__ float blur4[32][32];
 
 	//different convolution kernels with different sigmas
-	__shared__ float sigma0[9] = {};
-	__shared__ float sigma1[9] = {};
-	__shared__ float sigma2[9] = {};
-	__shared__ float sigma3[9] = {};
-	__shared__ float sigma4[9] = {};
+	__shared__ float sigma0[3][3] = {{0.077847, 0.123317, 0.077847}, {0.123317, 0.195346, 0.123317}, {0.077847, 0.123317, 0.077847}}; 
+	__shared__ float sigma1[3][3] = {{0.102059, 0.115349, 0.102059}, {0.115349, 0.130371, 0.115349}, {0.102059, 0.115349, 0.102059}};
+	__shared__ float sigma2[3][3] = {{0.107035, 0.113092, 0.107035}, {0.113092, 0.119491, 0.113092}, {0.107035, 0.113092, 0.107035}};
+	__shared__ float sigma3[3][3] = {{0.108808, 0.112244, 0.108808}, {0.112244, 0.115788, 0.112244}, {0.108808, 0.112244, 0.108808}};
+	__shared__ float sigma4[3][3] = {{0.109634, 0.111842, 0.109634}, {0.111842, 0.114094, 0.111842}, {0.109634, 0.111842, 0.109634}}; 
 	
 	//pixel
 	//int pixel = threadIdx.x;
