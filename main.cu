@@ -183,7 +183,7 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 		float upper1 = fminf(fminf(upper1_123, upper1_456), upper1_789);
 		float upper2 = fminf(fminf(upper2_123, upper2_456), upper2_789);
 
-		float final_min = fminf(fminf(upper0, upper1), upper2);
+		float upper_final_min = fminf(fminf(upper0, upper1), upper2);
 
 		//upper max calc
 		upper0_123 = fmaxf(fmaxf(difference0[y-1][x-1], difference0[y-1][x-1]), difference0[y-1][x+1]);
@@ -203,8 +203,47 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 		upper1 = fmaxf(fmaxf(upper1_123, upper1_456), upper1_789);
 		upper2 = fmaxf(fmaxf(upper2_123, upper2_456), upper2_789);
 
-		final_max = fmaxf(fmaxf(upper0, upper1), upper2);
+		float upper_final_max = fmaxf(fmaxf(upper0, upper1), upper2);
 
+		//lower min calc
+		float lower3_123 = fminf(fminf(difference3[y-1][x-1], difference3[y-1][x-1]), difference3[y-1][x+1]);
+		float lower3_456 = fminf(fminf(difference3[y][x-1], difference3[y][x-1]), difference3[y][x+1]);
+		float lower3_789 = fminf(fminf(difference3[y+1][x-1], difference3[y+1][x-1]), difference3[y+1][x+1]);
+		
+		float lower1_123 = fminf(fminf(difference1[y-1][x-1], difference1[y-1][x-1]), difference1[y-1][x+1]);
+		float lower1_456 = fminf(fminf(difference1[y][x-1], difference1[y][x-1]), difference1[y][x+1]);
+		float lower1_789 = fminf(fminf(difference1[y+1][x-1], difference1[y+1][x-1]), difference1[y+1][x+1]);
+
+
+		float lower2_123 = fminf(fminf(difference2[y-1][x-1], difference2[y-1][x-1]), difference2[y-1][x+1]);
+		float lower2_456 = fminf(fminf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
+		float lower2_789 = fminf(fminf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
+
+		float lower3 = fminf(fminf(upper3_123, upper3_456), upper3_789);
+		float lower1 = fminf(fminf(upper1_123, upper1_456), upper1_789);
+		float lower2 = fminf(fminf(upper2_123, upper2_456), upper2_789);
+
+		float lower_final_min = fminf(fminf(upper3, upper1), upper2);
+
+		//upper max calc
+		lower3_123 = fmaxf(fmaxf(difference3[y-1][x-1], difference3[y-1][x-1]), difference3[y-1][x+1]);
+		lower3_456 = fmaxf(fmaxf(difference3[y][x-1], difference3[y][x-1]), difference3[y][x+1]);
+		lower3_789 = fmaxf(fmaxf(difference3[y+1][x-1], difference3[y+1][x-1]), difference3[y+1][x+1]);
+		
+		lower1_123 = fmaxf(fmaxf(difference1[y-1][x-1], difference1[y-1][x-1]), difference1[y-1][x+1]);
+		lower1_456 = fmaxf(fmaxf(difference1[y][x-1], difference1[y][x-1]), difference1[y][x+1]);
+		lower1_789 = fmaxf(fmaxf(difference1[y+1][x-1], difference1[y+1][x-1]), difference1[y+1][x+1]);
+
+
+		lower2_123 = fmaxf(fmaxf(difference2[y-1][x-1], difference2[y-1][x-1]), difference2[y-1][x+1]);
+		lower2_456 = fmaxf(fmaxf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
+		lower2_789 = fmaxf(fmaxf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
+
+		lower3 = fmaxf(fmaxf(upper3_123, upper3_456), upper3_789);
+		lower1 = fmaxf(fmaxf(upper1_123, upper1_456), upper1_789);
+		lower2 = fmaxf(fmaxf(upper2_123, upper2_456), upper2_789);
+
+		float lower_final_max = fmaxf(fmaxf(upper3, upper1), upper2);
 
 
 
