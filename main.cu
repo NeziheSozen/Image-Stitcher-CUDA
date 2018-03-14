@@ -163,8 +163,60 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 	//find neighbors in 3x3 cube 
 	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
 	{
-		//check if minimum
-		fminf(difference1[y][x], difference0[y-1][x-1]
+		//could have used reduction with shared memory but we want to keep more space for shared memory
+		
+		//upper min calc
+		float upper0_123 = fminf(fminf(difference0[y-1][x-1], difference0[y-1][x-1]), difference0[y-1][x+1]);
+		float upper0_456 = fminf(fminf(difference0[y][x-1], difference0[y][x-1]), difference0[y][x+1]);
+		float upper0_789 = fminf(fminf(difference0[y+1][x-1], difference0[y+1][x-1]), difference0[y+1][x+1]);
+		
+		float upper1_123 = fminf(fminf(difference1[y-1][x-1], difference1[y-1][x-1]), difference1[y-1][x+1]);
+		float upper1_456 = fminf(fminf(difference1[y][x-1], difference1[y][x-1]), difference1[y][x+1]);
+		float upper1_789 = fminf(fminf(difference1[y+1][x-1], difference1[y+1][x-1]), difference1[y+1][x+1]);
+
+
+		float upper2_123 = fminf(fminf(difference2[y-1][x-1], difference2[y-1][x-1]), difference2[y-1][x+1]);
+		float upper2_456 = fminf(fminf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
+		float upper2_789 = fminf(fminf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
+
+		float upper0 = fminf(fminf(upper0_123, upper0_456), upper0_789);
+		float upper1 = fminf(fminf(upper1_123, upper1_456), upper1_789);
+		float upper2 = fminf(fminf(upper2_123, upper2_456), upper2_789);
+
+		float final_min = fminf(fminf(upper0, upper1), upper2);
+
+		//upper max calc
+		upper0_123 = fmaxf(fmaxf(difference0[y-1][x-1], difference0[y-1][x-1]), difference0[y-1][x+1]);
+		upper0_456 = fmaxf(fmaxf(difference0[y][x-1], difference0[y][x-1]), difference0[y][x+1]);
+		upper0_789 = fmaxf(fmaxf(difference0[y+1][x-1], difference0[y+1][x-1]), difference0[y+1][x+1]);
+		
+		upper1_123 = fmaxf(fmaxf(difference1[y-1][x-1], difference1[y-1][x-1]), difference1[y-1][x+1]);
+		upper1_456 = fmaxf(fmaxf(difference1[y][x-1], difference1[y][x-1]), difference1[y][x+1]);
+		upper1_789 = fmaxf(fmaxf(difference1[y+1][x-1], difference1[y+1][x-1]), difference1[y+1][x+1]);
+
+
+		upper2_123 = fmaxf(fmaxf(difference2[y-1][x-1], difference2[y-1][x-1]), difference2[y-1][x+1]);
+		upper2_456 = fmaxf(fmaxf(difference2[y][x-1], difference2[y][x-1]), difference2[y][x+1]);
+		upper2_789 = fmaxf(fmaxf(difference2[y+1][x-1], difference2[y+1][x-1]), difference2[y+1][x+1]);
+
+		upper0 = fmaxf(fmaxf(upper0_123, upper0_456), upper0_789);
+		upper1 = fmaxf(fmaxf(upper1_123, upper1_456), upper1_789);
+		upper2 = fmaxf(fmaxf(upper2_123, upper2_456), upper2_789);
+
+		final_max = fmaxf(fmaxf(upper0, upper1), upper2);
+
+
+
+
+
+
+
+
+
+
+
+		
+		
 	}
 }
 
