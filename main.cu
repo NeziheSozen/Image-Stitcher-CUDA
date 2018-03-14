@@ -116,10 +116,10 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 	__shared__ float difference2[32][32];
 	__shared__ float difference3[32][32];
 
-
 	//pixel
 	int x = threadIdx.x;
 	int y = threadIdx.y;
+
 
 	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
 	{
@@ -244,17 +244,21 @@ __global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 		lower2 = fmaxf(fmaxf(upper2_123, upper2_456), upper2_789);
 
 		float lower_final_max = fmaxf(fmaxf(upper3, upper1), upper2);
-
-
-
-
-
-
-
-
-
-
 		
+		//generate extrema images
+		//difference1 is upper
+		//difference2 is lower
+		//think of it visually
+		if ((upper_final_max == difference1[y][x]) || (upper_final_min == difference1[y][x]) || (lower_final_max == difference2[y][x]) || (lower_final_min == difference2[y][x]))
+		{
+			//subpixel value not calculated so may not be robust and give excat....
+			
+			//intensity threshold
+			if (((difference1[y][x] > THRESHOLD) && (difference1[y][x] < THRESHOLD)) || ((difference2[y][x] > THRESHOLD) && (difference2[y][x] < THRESHOLD)))
+			{
+				
+			}
+		}
 		
 	}
 }
