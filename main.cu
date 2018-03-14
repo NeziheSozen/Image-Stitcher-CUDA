@@ -122,6 +122,7 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 
 	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
 	{
+		//convolutions
 		blur0[y][x]
 		= (sigma0[0][0]*shared_input[y-1][x-1]) + (sigma0[0][1]*shared_input[y-1][x]) + (sigma0[0][2]*shared_input[y-1][x+1])
 		+ (sigma0[1][0]*shared_input[y][x-1]) + (sigma0[1][1]*shared_input[y][x]) + (sigma0[1][2]*shared_input[y][x+1])
@@ -148,8 +149,16 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 		= (sigma4[0][0]*shared_input[y-1][x-1]) + (sigma4[0][1]*shared_input[y-1][x]) + (sigma4[0][2]*shared_input[y-1][x+1])
 		+ (sigma4[1][0]*shared_input[y][x-1]) + (sigma4[1][1]*shared_input[y][x]) + (sigma4[1][2]*shared_input[y][x+1])
 		+ (sigma4[2][0]*shared_input[y+1][x-1]) + (sigma4[2][1]*shared_input[y+1][x]) + (sigma4[2][2]*shared_input[y+1][x+1]);
-
 	}
+	__syncthreads();
+
+	//difference
+	difference0[y][x] = blur0[y][x] - blur1[y][x];
+	difference1[y][x] = blur1[y][x] - blur2[y][x];
+	difference2[y][x] = blur2[y][x] - blur3[y][x];
+	difference3[y][x] = blur3[y][x] - blur4[y][x];
+	__syncthreads();
+
 
 }
 
