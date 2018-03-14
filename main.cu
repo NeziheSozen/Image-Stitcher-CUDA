@@ -86,7 +86,7 @@ int main(void)
 Input: 32*32
 */
 
-__global__ void PipelinedBlur(float* input, float* output0, float* output1, float* output2, float* output3, int w)
+__global__ void PipelinedBlur(float* input, int2* keypoints, int w)
 {
 	//assign shared memory to 32 by 32 with halo region
 	__shared__ float shared_input[32][32];
@@ -115,6 +115,7 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 	__shared__ float difference1[32][32];
 	__shared__ float difference2[32][32];
 	__shared__ float difference3[32][32];
+
 
 	//pixel
 	int x = threadIdx.x;
@@ -152,14 +153,19 @@ __global__ void PipelinedBlur(float* input, float* output0, float* output1, floa
 	}
 	__syncthreads();
 
-	//difference
+	//difference of gaussian
 	difference0[y][x] = blur0[y][x] - blur1[y][x];
 	difference1[y][x] = blur1[y][x] - blur2[y][x];
 	difference2[y][x] = blur2[y][x] - blur3[y][x];
 	difference3[y][x] = blur3[y][x] - blur4[y][x];
 	__syncthreads();
 
-
+	//find neighbors in 3x3 cube 
+	if (((x>0)&&(y>0))&&((x<31)&&(y<31)))
+	{
+		//check if minimum
+		fminf(difference1[y][x], difference0[y-1][x-1]
+	}
 }
 
 
